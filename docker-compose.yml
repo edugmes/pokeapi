@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  web:
+    container_name: web_c
+    hostname: web_addr
+    image: ${FASTAPI_IMAGE}
+    command: >
+      bash -c "${FASTAPI_INIT_CMD}
+      && ${FASTAPI_CMD}"
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./project:/usr/src/
+    networks:
+      - poker-net
+
+networks:
+  poker-net:
+    name: poker-net
