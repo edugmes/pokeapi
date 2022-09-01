@@ -1,10 +1,25 @@
 import json
+import os
 from asyncio import gather
 
+import aioredis
 import httpx
 from fastapi import FastAPI
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.redis import RedisBackend
+from fastapi_cache.decorator import cache
 
 app = FastAPI()
+
+
+@app.on_event("startup")
+async def startup() -> None:
+    """Setup redis connection to cache requests
+    """
+    redis_addr = os.getenv("REDIS_URL")
+    redis =  aioredis.from_url(redis_addr, encoding="utf8", decode_responses=True)
+
+    FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
 
 
 async def berry_info(berry_id: int, http_client: httpx.AsyncClient) -> dict:
@@ -66,6 +81,7 @@ async def berries_specific_info(count: int) -> list:
 
 
 @app.get("/")
+@cache(expire=60)
 async def read_root():
     basic_info = berries_basic_info()
     count_info = berries_count(basic_info)
