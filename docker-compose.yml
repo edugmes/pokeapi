@@ -12,10 +12,19 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./project:/usr/src/
+      - ./project:/usr/src/ # no need for production
     networks:
-      - poker-net
+      - poke-net
+    depends_on:
+      - redis
+
+  redis:
+    container_name: redis_c
+    hostname: redis_addr
+    image: "redis:alpine"
+    networks:
+      - poke-net
 
 networks:
-  poker-net:
-    name: poker-net
+  poke-net:
+    name: poke-net
