@@ -1,11 +1,13 @@
 import json
+from asyncio import gather
 
 import httpx
 from fastapi import FastAPI
 
 app = FastAPI()
 
-def berry_info(berry_id: int, http_client: httpx.Client) -> dict:
+
+async def berry_info(berry_id: int, http_client: httpx.AsyncClient) -> dict:
     """Make a request to PokeAPI to get specific berry info
 
     :param berry_id: The ID of the be
@@ -14,11 +16,12 @@ def berry_info(berry_id: int, http_client: httpx.Client) -> dict:
     """
     url = f'https://pokeapi.co/api/v2/berry/{berry_id}/'
 
-    response = http_client.get(url)
+    response = await http_client.get(url)
 
     json_response = json.loads(response.text)
 
     return json_response
+
 
 def berries_basic_info(offset: int = 0, limit: int = 1) -> dict:
     """Make a request to PokeAPI to get basic berries info
@@ -37,6 +40,7 @@ def berries_basic_info(offset: int = 0, limit: int = 1) -> dict:
 
     return data
 
+
 def berries_count(berries_general_info: dict) -> int:
     """Take a berries dictionary with general info and returns the number of berries
 
@@ -46,8 +50,25 @@ def berries_count(berries_general_info: dict) -> int:
     return berries_general_info['count']
 
 
+async def berries_specific_info(count: int) -> list:
+    """Create a list of async `berry_info` tasks, and then waits for all of them to return berries specific info
+
+    :param count: The number of berries to get info for
+    :return: A list of dictionaries with berries specific info
+    """
+    result = []
+
+    async with httpx.AsyncClient() as http_client:
+        berries = [berry_info(berry_id, http_client) for berry_id in range(1, count+1)]
+        result = await gather(*berries)
+
+    return result
+
+
 @app.get("/")
-def read_root():
-    client = httpx.Client()
-    data = berries_basic_info()
-    return {"berries_count": berries_count(data), 'berries_data': data, 'berry_1_info': berry_info(1, client)}
+async def read_root():
+    basic_info = berries_basic_info()
+    count_info = berries_count(basic_info)
+    specific_info = await berries_specific_info(10)
+
+    return {"berries_count": count_info, 'berries_basic_info': basic_info, 'berries_specific_info': specific_info}
