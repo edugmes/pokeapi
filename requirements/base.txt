@@ -1,6 +1,12 @@
+# For the api endpoints
 fastapi>=0.68.0,<0.69.0
+# For data schema
 pydantic>=1.8.0,<2.0.0
+# For the server
 uvicorn>=0.15.0,<0.16.0
+# For async http requests
 httpx>=0.23.0,<0.23.5
+# For requests caching
 fastapi-cache2[redis]>=0.1.9,<0.2.1
+# For faster stats
 pandas>=1.4.4,<1.4.9

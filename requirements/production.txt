@@ -1,2 +1,3 @@
 -r ./base.txt
+# For high performance redis
 hiredis>=2.0.1,<2.0.5
