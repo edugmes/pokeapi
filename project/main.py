@@ -1,11 +1,12 @@
 import json
 import os
 from asyncio import gather
+from typing import Dict, Union
 
 import aioredis
 import httpx
 import pandas as pd
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
 from fastapi_cache.decorator import cache
@@ -22,7 +23,43 @@ async def startup() -> None:
     FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
 
 
-async def berry_info(berry_id: int, http_client: httpx.AsyncClient) -> dict:
+async def async_get(
+    url: str, http_client: httpx.AsyncClient, params: dict = {}
+) -> Union[dict, None]:
+    client = http_client if http_client != None else httpx.AsyncClient()
+
+    try:
+        response = await client.get(url)
+        response.raise_for_status()
+        return json.loads(response.text)
+    # Request error handling (e.g. timeout)
+    except httpx.RequestError as exc:
+        return None
+    # HTTP status code different than 2xx
+    except httpx.HTTPStatusError as exc:
+        return None
+
+
+def sync_get(
+    url: str, http_client: httpx.Client, params: dict = {}
+) -> Union[dict, None]:
+    client = http_client if http_client != None else httpx.Client()
+
+    try:
+        response = client.get(url, params=params)
+        response.raise_for_status()
+        return json.loads(response.text)
+    # Request error handling (e.g. timeout)
+    except httpx.RequestError as exc:
+        return None
+    # HTTP status code different than 2xx
+    except httpx.HTTPStatusError as exc:
+        return None
+
+
+async def berry_info(
+    berry_id: int, http_client: httpx.AsyncClient
+) -> Union[dict, None]:
     """Make a request to PokeAPI to get specific berry info
 
     :param berry_id: The ID of the be
@@ -31,14 +68,12 @@ async def berry_info(berry_id: int, http_client: httpx.AsyncClient) -> dict:
     """
     url = f"https://pokeapi.co/api/v2/berry/{berry_id}/"
 
-    response = await http_client.get(url)
+    data = await async_get(url, http_client)
 
-    json_response = json.loads(response.text)
-
-    return json_response
+    return data
 
 
-def berries_basic_info(offset: int = 0, limit: int = 1) -> dict:
+def berries_basic_info(offset: int = 0, limit: int = 1) -> Union[dict, None]:
     """Make a request to PokeAPI to get basic berries info
 
     :param offset: The offset from which the data is returned, defaults to 0
@@ -50,8 +85,7 @@ def berries_basic_info(offset: int = 0, limit: int = 1) -> dict:
 
     client = httpx.Client()
 
-    response = client.get(url, params=params)
-    data = json.loads(response.text)
+    data = sync_get(url, client, params=params)
 
     return data
 
@@ -78,6 +112,9 @@ async def berries_specific_info(count: int) -> list:
             berry_info(berry_id, http_client) for berry_id in range(1, count + 1)
         ]
         result = await gather(*berries)
+
+    # Clean up berries data that failed to be retrieved
+    result = list(filter(lambda res: res != None, result))
 
     return result
 
@@ -127,17 +164,31 @@ def berries_stats(berries_df: pd.DataFrame) -> dict:
 
 
 @app.get("/allBerryStats")
-@cache(expire=60)
+@cache(expire=15)
 async def all_berry_stats() -> dict:
     """Get berries names and growth time stats (min, max, median, variance, mean, and frequency)
 
+    :raises HTTPException: If either PokeAPI general infor or all the berries specific info can't be retrieved
     :return: The berries stats
     """
     basic_info = berries_basic_info()
+
+    # Check if basic info could be retrieved
+    if not basic_info:
+        raise HTTPException(
+            status_code=404, detail="PokeAPI not available at the moment"
+        )
+
     count_info = berries_count(basic_info)
     specific_info = await berries_specific_info(count_info)
 
     df = filter_specific_info(specific_info, filter=["name", "growth_time"])
+
+    # Check if at least one berry specific info could be retrieved
+    if len(df.index) == 0:
+        raise HTTPException(
+            status_code=404, detail="PokeAPI not available at the moment"
+        )
 
     stats = berries_stats(df)
 
