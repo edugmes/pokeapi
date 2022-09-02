@@ -128,7 +128,11 @@ def berries_stats(berries_df: pd.DataFrame) -> dict:
 
 @app.get("/allBerryStats")
 @cache(expire=60)
-async def all_berry_stats():
+async def all_berry_stats() -> dict:
+    """Get berries names and growth time stats (min, max, median, variance, mean, and frequency)
+
+    :return: The berries stats
+    """
     basic_info = berries_basic_info()
     count_info = berries_count(basic_info)
     specific_info = await berries_specific_info(count_info)
