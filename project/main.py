@@ -4,6 +4,7 @@ from asyncio import gather
 
 import aioredis
 import httpx
+import pandas as pd
 from fastapi import FastAPI
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
@@ -79,12 +80,57 @@ async def berries_specific_info(count: int) -> list:
 
     return result
 
+def filter_specific_info(specific_info: list, filter: list = []) -> pd.DataFrame:
+    """Given a list of dictionaries of berries specific data, return a dataframe with the columns specified in the filter list
+
+    :param specific_info: list of dictionaries of berries specific data
+    :param filter: filter list to generate the dataframe columns
+    :return: A dataframe with the columns specified in the filter list.
+    """
+    cols = filter
+    data = []
+
+    for info in specific_info:
+        filtered_data = [info[col] for col in cols]
+        data.append(filtered_data)
+
+    df = pd.DataFrame(data=data, columns=cols)
+
+    return df
+
+def berries_stats(berries_df: pd.DataFrame) -> dict:
+    """Generate growth time stats for berries
+
+    :param berries_df: A pandas dataframe with the berries names and growth time
+    :return: A dictionary with berries names and growth stats (min, max, median, variance, mean, and frequency)
+    """
+    names = berries_df['name'].tolist()
+    min_value = int(berries_df['growth_time'].min())
+    median_value = round(float(berries_df['growth_time'].median()), 2)
+    max_value = int(berries_df['growth_time'].max())
+    variance_value = round(float(berries_df['growth_time'].var()), 2)
+    mean_value = round(float(berries_df['growth_time'].mean()), 2)
+    frequency = berries_df['growth_time'].value_counts().to_dict()
+
+    return {
+        'berries_names': names,
+        'min_growth_time': min_value,
+        'median_growth_time': median_value,
+        'max_growth_time': max_value,
+        'variance_growth_time': variance_value,
+        'mean_growth_time': mean_value,
+        'frequency_growth_time': frequency,
+    }
 
 @app.get("/")
 @cache(expire=60)
 async def read_root():
     basic_info = berries_basic_info()
     count_info = berries_count(basic_info)
-    specific_info = await berries_specific_info(10)
+    specific_info = await berries_specific_info(count_info)
 
-    return {"berries_count": count_info, 'berries_basic_info': basic_info, 'berries_specific_info': specific_info}
+    df = filter_specific_info(specific_info, filter=['name', 'growth_time'])
+
+    stats = berries_stats(df)
+
+    return stats
