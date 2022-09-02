@@ -5,6 +5,8 @@
 
 
 # 1 - Overview
+This is a proof-of-concept for the [FastAPI](https://fastapi.tiangolo.com) framework. It consumes the
+[PokeAPI](https://pokeapi.co/docs/v2) berries endpoint and caches requests on a Redis container.
 
 Application directory structure:
 ```
