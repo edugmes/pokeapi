@@ -1,6 +1,7 @@
 import json
 import os
 from asyncio import gather
+from email import message
 from typing import Dict, Union
 
 import aioredis
@@ -10,6 +11,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
 from fastapi_cache.decorator import cache
+from pydantic import BaseModel
 
 app = FastAPI()
 
@@ -163,12 +165,30 @@ def berries_stats(berries_df: pd.DataFrame) -> dict:
     }
 
 
-@app.get("/allBerryStats")
+class BerriesStatsOut(BaseModel):
+    berries_names: list
+    min_growth_time: int
+    median_growth_time: float
+    max_growth_time: int
+    variance_growth_time: float
+    mean_growth_time: float
+    frequency_growth_time: Dict[str, int]
+
+
+class UnavailablePokeAPI(BaseModel):
+    detail: str
+
+
+@app.get(
+    "/allBerryStats",
+    response_model=BerriesStatsOut,
+    responses={404: {"model": UnavailablePokeAPI}},
+)
 @cache(expire=15)
 async def all_berry_stats() -> dict:
     """Get berries names and growth time stats (min, max, median, variance, mean, and frequency)
 
-    :raises HTTPException: If either PokeAPI general infor or all the berries specific info can't be retrieved
+    :raises HTTPException: If either PokeAPI general info or all the berries specific info can't be retrieved
     :return: The berries stats
     """
     basic_info = berries_basic_info()
