@@ -56,7 +56,7 @@ Prod image
 3. Setup a .env file
 
 In order to be closer to a production environment I've used Docker approach of environment variables
-in a `.env` file. All sensitive data (e.g secret keys and db passwords) can be written to this file and are loaded only
+in a `.env` file. All sensitive data (e.g private urls with passwords) can be written to this file and are loaded only
 at container startup, staying on the OS memory. For this security reason I've gitignored `.env`, so that this
 data isn't exposed on the repository.
 
