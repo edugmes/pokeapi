@@ -122,7 +122,7 @@ def berries_stats(berries_df: pd.DataFrame) -> dict:
         'frequency_growth_time': frequency,
     }
 
-@app.get("/")
+@app.get("/allBerryStats")
 @cache(expire=60)
 async def read_root():
     basic_info = berries_basic_info()
