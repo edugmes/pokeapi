@@ -124,7 +124,7 @@ def berries_stats(berries_df: pd.DataFrame) -> dict:
 
 @app.get("/allBerryStats")
 @cache(expire=60)
-async def read_root():
+async def all_berry_stats():
     basic_info = berries_basic_info()
     count_info = berries_count(basic_info)
     specific_info = await berries_specific_info(count_info)
