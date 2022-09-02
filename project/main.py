@@ -15,7 +15,15 @@ from berry_api import (
 )
 from schema import BerriesStatsOut, UnavailablePokeAPI
 
-app = FastAPI()
+if bool(os.getenv("DOCS", False)) is True:
+    app = FastAPI(
+        title="PokeAPIDemo",
+        description="""This API demonstrates the use of a dockerized FastAPI application that consumes PokeAPI
+          (https://pokeapi.co/docs/v2#berries) and caches requests with Redis.""",
+        version="1.0.0",
+    )
+else:
+    app = FastAPI(docs_url=None)
 
 
 @app.on_event("startup")
@@ -31,6 +39,7 @@ async def startup() -> None:
     "/allBerryStats",
     response_model=BerriesStatsOut,
     responses={404: {"model": UnavailablePokeAPI}},
+    tags=["Berries"],
 )
 @cache(expire=15)
 async def all_berry_stats() -> dict:
